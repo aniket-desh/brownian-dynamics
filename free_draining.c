@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <math.h>
 #include <time.h>
-#include <interactions.h>
 
 #define IM1 2147483563
 #define IM2 2147483399
@@ -20,9 +19,9 @@
 #define NDIV (1+IMM1/NTAB)
 
 void cholesky(double *mm, int chain_length, double *cc, int t);
-float ran1(long *idum);
+float ran(long *idum);
 float gasdev(long *idum);
-long initRan();
+long init_random();
 float stochastic();
 
 struct Bead {
@@ -65,11 +64,11 @@ int main(int argc, const char *argv[]) {
     char *str3 = malloc(sizeof(char) * 30);
 
     sprintf(str1, "RFD%d_%d_edot%d.xyz", (int) (D * 10), Nbb, Nsc);
-    sprintf(str2, "RFD%d_%d_edot%d.dat", (int) (D * 10), Nbb, Nsc);
+    sprintf(str2, "PFD%d_%d_edot%d.txt", (int) (D * 10), Nbb, Nsc);
     sprintf(str3, "stats.txt");
 
     FILE *output_file, *output, *stats;
-    output_file = fopen(str1, "w");
+    output_file = fopen(str2, "w");
 
     // fprintf(output_file, ctime(&the_time));
     fprintf(output_file, "epsilon = %lf\n", epsilon);
@@ -83,18 +82,109 @@ int main(int argc, const char *argv[]) {
     fprintf(output_file, "\n");
     fclose(output_file);
 
-    struct Bead *chain_a = malloc(N * sizeof(struct Bead)); 
-    struct Bead *chain_b = malloc(N * sizeof(struct Bead));
+    struct Bead *chain_a = calloc(N, sizeof(struct Bead)); 
+    struct Bead *chain_b = calloc(N, sizeof(struct Bead));
 
-    double *random_a = calloc(N, sizeof(double)); // random numbers for chain a
-    double *random_b = calloc(N, sizeof(double)); // random numbers for chain b
+    double *random_a = calloc(N * 3, sizeof(double)); // random numbers for chain a
+    double *random_b = calloc(N * 3, sizeof(double)); // random numbers for chain b
 
     p = sqrt(2.0 * dt); // sqrt(2 * dt) for random number generation
     long *idum = malloc(sizeof(long)); // random number seed
 
+    *idum = init_random(); // initialize random number seed
+
+    output_file = fopen(str2, "a");
+    fprintf(output_file, "SEED = %ld\n", *idum);
+    fclose(output_file);
+
+
+    // initialize chain a
+    for(i = 0; i < Nbb; i++) {
+        chain_a[i].x = 0.0;
+        chain_a[i].y = 0.0;
+        chain_a[i].z = 1.0 + 2.0 * (double) i;
+    }
+    for(i = 0; i < (N - Nbb); i++) {
+        chain_a[i + Nbb].x = -2.0 - 2.0 * (double) (i % Nsc);
+        chain_a[i + Nbb].y = 0.0;
+        chain_a[i + Nbb].z = 1.0 + 2.0 * (double) (i / Nsc);
+    }
+
+    // initialize chain b
+    for(i = 0; i < Nbb; i++) {
+        chain_b[i].x = D;
+        chain_b[i].y = 0.0;
+        chain_b[i].z = 1.0 + 2.0 * (double) i;
+    }
+    for(i = 0; i < (N - Nbb); i++) {
+        chain_b[Nbb + i].x = D + 2.0 + 2.0 * (double) (i % Nsc);
+        chain_b[Nbb + i].y = 0.0;
+        chain_b[Nbb + i].z = 1.0 + 2.0 * (double) (i / Nsc);
+    }
+
+    // simulation loop
+    for(t = 0; t < tmax; t++) {
+        for(i = 0; i < N; i++) {
+            // zero the forces at each time step
+            chain_a[i].fx = 0.0; chain_a[i].fy = 0.0; chain_a[i].fz = 0.0;
+            chain_b[i].fx = 0.0; chain_b[i].fy = 0.0; chain_b[i].fz = 0.0;
+        }
+#include "interactions.h"
+        for(i = 0; i < N * 3; i++) {
+            // set random velocities
+            random_a[i] = gasdev(idum);
+            random_b[i] = gasdev(idum);
+        }
+        for(i = Nbb; i < N; i++) {
+            // update positions based on forces, flows, random displacements for both chains
+            chain_a[i].x += dt * chain_a[i].fx + p * random_a[3 * i];
+            chain_a[i].y += dt * chain_a[i].fy + p * random_a[3 * i + 1];
+            chain_a[i].z += dt * chain_a[i].fz + p * random_a[3 * i + 2];
+
+            if(chain_a[i].z > L) chain_a[i].z -= L;
+            if(chain_a[i].z < 0) chain_a[i].z += L;
+
+            chain_b[i].x += dt * chain_b[i].fx + p * random_b[3 * i];
+            chain_b[i].y += dt * chain_b[i].fy + p * random_b[3 * i + 1];
+            chain_b[i].z += dt * chain_b[i].fz + p * random_b[3 * i + 2];
+
+            if(chain_b[i].z > L) chain_b[i].z -= L;
+            if(chain_b[i].z < 0) chain_b[i].z += L;
+        }
+
+        if(t % 10000 == 0 && t > 0) {
+            if (t > 100000) {
+                // output an xyz file periodically
+                PMFave_force += PMF_force / 10000.0;
+                PMFave_energy += PMF_energy / 10000.0;
+                PMFcount++;
+                stats = fopen(str3, "a");
+                fprintf(stats, "%d\t%lf\t%lf\n%lf", t, D, PMFave_force / (double) PMFcount, PMFave_energy / (double) PMFcount);
+                fclose(stats);
+            }
+            PMF_force = 0.0;
+            PMF_energy = 0.0;
+
+            output = fopen(str1, "a");
+            fprintf(output, "%d\n%d %lf\n", 2 * N, t, D);
+            for (i = 0; i < N; i++) {
+                fprintf(output, "A\t%lf\t%lf\t%lf\n", chain_a[i].x, chain_a[i].y, chain_a[i].z);
+            }
+            for (i = 0; i < N; i++) {
+                fprintf(output, "B\t%lf\t%lf\t%lf\n", chain_b[i].x, chain_b[i].y, chain_b[i].z);
+            }
+            fclose(output);
+
+        }
+
+    }
+
+    return 0;
+
+
 }
 
-float random(long *idum) {
+float ran(long *idum) {
     int j;
     long k;
     static long idum2 = 123456789;
@@ -140,7 +230,7 @@ float random(long *idum) {
 
 float gasdev(long *idum) {
 
-    float random(long *idum);
+    float ran(long *idum);
     static int iset = 0;
     static float gset;
     float fac, rsq, v1, v2;
@@ -149,8 +239,8 @@ float gasdev(long *idum) {
         iset = 0;
     if (iset == 0) {
         do {
-            v1 = 2.0 * random(idum) - 1.0;
-            v2 = 2.0 * random(idum) - 1.0;
+            v1 = 2.0 * ran(idum) - 1.0;
+            v2 = 2.0 * ran(idum) - 1.0;
             rsq = v1 * v1 + v2 * v2;
         } while (rsq >= 1.0 || rsq == 0.0);
 
@@ -207,5 +297,5 @@ void cholesky(double *mm, int chain_length, double *cc, int t) {
 long init_random() {
     time_t seconds;
     time(&seconds);
-    return (long) seconds;
+    return -1 * (unsigned long) (seconds);
 }
