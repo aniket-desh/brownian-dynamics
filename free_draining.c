@@ -63,9 +63,9 @@ int main(int argc, const char *argv[]) {
     char *str2 = malloc(sizeof(char) * 30);
     char *str3 = malloc(sizeof(char) * 30);
 
-    sprintf(str1, "RFD%d_%d_edot%d.xyz", (int) (D * 10), Nbb, Nsc);
-    sprintf(str2, "PFD%d_%d_edot%d.txt", (int) (D * 10), Nbb, Nsc);
-    sprintf(str3, "stats.txt");
+    sprintf(str1, "output/RFD%d_%d_edot%d.xyz", (int) (D * 10), Nbb, Nsc);
+    sprintf(str2, "output/PFD%d_%d_edot%d.txt", (int) (D * 10), Nbb, Nsc);
+    sprintf(str3, "output/stats.txt");
 
     FILE *output_file, *output, *stats;
     output_file = fopen(str2, "w");
@@ -117,9 +117,9 @@ int main(int argc, const char *argv[]) {
         chain_b[i].z = 1.0 + 2.0 * (double) i;
     }
     for(i = 0; i < (N - Nbb); i++) {
-        chain_b[Nbb + i].x = D + 2.0 + 2.0 * (double) (i % Nsc);
-        chain_b[Nbb + i].y = 0.0;
-        chain_b[Nbb + i].z = 1.0 + 2.0 * (double) (i / Nsc);
+        chain_b[i + Nbb].x = D + 2.0 + 2.0 * (double) (i % Nsc);
+        chain_b[i + Nbb].y = 0.0;
+        chain_b[i + Nbb].z = 1.0 + 2.0 * (double) (i / Nsc);
     }
 
     // simulation loop
@@ -159,7 +159,11 @@ int main(int argc, const char *argv[]) {
                 PMFave_energy += PMF_energy / 10000.0;
                 PMFcount++;
                 stats = fopen(str3, "a");
-                fprintf(stats, "%d\t%lf\t%lf\n%lf", t, D, PMFave_force / (double) PMFcount, PMFave_energy / (double) PMFcount);
+                fprintf(stats, "%d %lf %lf %lf\n", 
+                        t, 
+                        D, 
+                        PMFave_force / (double) PMFcount, 
+                        PMFave_energy / (double) PMFcount);
                 fclose(stats);
             }
             PMF_force = 0.0;
