@@ -29,7 +29,7 @@ struct Bead {
     double fx, fy, fz;
 };
 
-int main(int argc, const char *argv[]) {
+int main(int argc, const char* argv[]) {
 
     // variables
     int N, Nbb, Nsc; // chain length, number of backbone beads, number of sidechain beads
@@ -63,9 +63,9 @@ int main(int argc, const char *argv[]) {
     char *str2 = malloc(sizeof(char) * 30);
     char *str3 = malloc(sizeof(char) * 30);
 
-    sprintf(str1, "output/RFD%d_%d_edot%d.xyz", (int) (D * 10), Nbb, Nsc);
-    sprintf(str2, "output/PFD%d_%d_edot%d.txt", (int) (D * 10), Nbb, Nsc);
-    sprintf(str3, "output/stats.txt");
+    sprintf(str1, "RFD%d_%d_edot%d.xyz", (int) (D * 10), Nbb, Nsc);
+    sprintf(str2, "PFD%d_%d_edot%d.txt", (int) (D * 10), Nbb, Nsc);
+    sprintf(str3, "stats.txt");
 
     FILE *output_file, *output, *stats;
     output_file = fopen(str2, "w");
@@ -184,7 +184,6 @@ int main(int argc, const char *argv[]) {
     }
 
     return 0;
-
 
 }
 

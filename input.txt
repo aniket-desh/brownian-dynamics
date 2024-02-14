@@ -1,7 +1,7 @@
 epsilon = 1.0
 kappa = 200
-dt = 0.0001
-tmax = 10000000000
-Nbb = 13
-Nsc = 8
-D = 5.0
+dt = 0.001
+tmax = 10000000
+Nbb = 14
+Nsc = 5
+D = 11.00000
