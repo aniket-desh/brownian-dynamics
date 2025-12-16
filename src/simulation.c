@@ -14,7 +14,8 @@ static inline uint32_t lcg_rand(uint32_t *state) {
 }
 
 static double random_uniform(uint32_t *state) {
-    return (lcg_rand(state) >> 1) / (double)UINT32_MAX;
+    // Use the full 32-bit output range to sample [0, 1) without clipping
+    return lcg_rand(state) / 4294967296.0;  // 2^32
 }
 
 static double random_normal(uint32_t *state) {
