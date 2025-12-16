@@ -1,0 +1,6 @@
+bd_sim
+src/*.o
+*.xyz
+*.csv
+figures/
+__pycache__/
