@@ -131,16 +131,33 @@ void apply_brownian_kick(Bead *beads, size_t count, double dt, double sqrt_2dt, 
 }
 
 double chain_center_distance(const Bead *chain_a, const Bead *chain_b, size_t count, double box_length) {
-    double ax = 0.0, ay = 0.0, az = 0.0;
-    double bx = 0.0, by = 0.0, bz = 0.0;
+    double ax = 0.0, ay = 0.0;
+    double bx = 0.0, by = 0.0;
+
+    // Use first bead as reference for periodic-aware z averaging
+    double ref_z_a = chain_a[0].z;
+    double ref_z_b = chain_b[0].z;
+    double sum_dz_a = 0.0, sum_dz_b = 0.0;
 
     for (size_t i = 0; i < count; ++i) {
-        ax += chain_a[i].x; ay += chain_a[i].y; az += chain_a[i].z;
-        bx += chain_b[i].x; by += chain_b[i].y; bz += chain_b[i].z;
+        ax += chain_a[i].x; ay += chain_a[i].y;
+        bx += chain_b[i].x; by += chain_b[i].y;
+
+        double dz_a = chain_a[i].z - ref_z_a;
+        if (dz_a > 0.5 * box_length) dz_a -= box_length;
+        if (dz_a < -0.5 * box_length) dz_a += box_length;
+        sum_dz_a += dz_a;
+
+        double dz_b = chain_b[i].z - ref_z_b;
+        if (dz_b > 0.5 * box_length) dz_b -= box_length;
+        if (dz_b < -0.5 * box_length) dz_b += box_length;
+        sum_dz_b += dz_b;
     }
 
-    ax /= (double)count; ay /= (double)count; az /= (double)count;
-    bx /= (double)count; by /= (double)count; bz /= (double)count;
+    ax /= (double)count; ay /= (double)count;
+    bx /= (double)count; by /= (double)count;
+    double az = ref_z_a + sum_dz_a / (double)count;
+    double bz = ref_z_b + sum_dz_b / (double)count;
 
     double dz = az - bz;
     if (dz > 0.5 * box_length) dz -= box_length;
@@ -152,15 +169,23 @@ double chain_center_distance(const Bead *chain_a, const Bead *chain_b, size_t co
 }
 
 double radius_of_gyration(const Bead *chain, size_t count, double box_length) {
-    double cx = 0.0, cy = 0.0, cz = 0.0;
+    // Use first bead as reference for periodic-aware z averaging
+    double cx = 0.0, cy = 0.0;
+    double ref_z = chain[0].z;
+    double sum_dz = 0.0;
+
     for (size_t i = 0; i < count; ++i) {
         cx += chain[i].x;
         cy += chain[i].y;
-        cz += chain[i].z;
+
+        double dz = chain[i].z - ref_z;
+        if (dz > 0.5 * box_length) dz -= box_length;
+        if (dz < -0.5 * box_length) dz += box_length;
+        sum_dz += dz;
     }
     cx /= (double)count;
     cy /= (double)count;
-    cz /= (double)count;
+    double cz = ref_z + sum_dz / (double)count;
 
     double rg2 = 0.0;
     for (size_t i = 0; i < count; ++i) {
